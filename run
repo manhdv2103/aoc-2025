@@ -1,0 +1,4 @@
+#!/usr/bin/bash
+
+dir=${PWD##*/}
+echo -e "main.zig\ninput\n../aoc.zig\n../utils.zig" | entr -rc bash -c "zig build run -Drun-dir=${dir}"

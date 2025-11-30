@@ -1,0 +1,6 @@
+.zig-cache
+zig-out
+
+/src/day*/input
+/src/day*/answer
+cookie

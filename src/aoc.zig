@@ -9,27 +9,27 @@ pub fn process(
     will_submit: bool,
 ) !void {
     const day = try getDay(allocator);
-    defer allocator.free(day);
-
     const input = try getInput(allocator, day);
     defer allocator.free(input);
 
-    var answer: []const u8 = undefined;
-    defer allocator.free(answer);
+    var arena = std.heap.ArenaAllocator.init(allocator);
+    defer arena.deinit();
+    const aa = arena.allocator();
 
+    var answer: []const u8 = undefined;
     var start: i128 = undefined;
     var elapsed: i128 = undefined;
     if (part == 1) {
         start = std.time.nanoTimestamp();
-        answer = try solve_p1(allocator, input);
+        answer = try solve_p1(aa, input);
         elapsed = std.time.nanoTimestamp() - start;
     } else {
         start = std.time.nanoTimestamp();
-        answer = try solve_p2(allocator, input);
+        answer = try solve_p2(aa, input);
         elapsed = std.time.nanoTimestamp() - start;
     }
 
-    std.debug.print("Day {s}\n", .{day});
+    std.debug.print("Day {d}\n", .{day});
     std.debug.print("Part {d}:\n", .{part});
 
     if (answer.len == 0) {
@@ -50,17 +50,17 @@ pub fn process(
     }
 }
 
-fn getDay(allocator: std.mem.Allocator) ![]const u8 {
+fn getDay(allocator: std.mem.Allocator) !u8 {
     const cwd = try std.fs.cwd().realpathAlloc(allocator, ".");
     defer allocator.free(cwd);
 
     const dir_name = std.fs.path.basename(cwd);
     const day_str = dir_name[3..];
 
-    return try allocator.dupe(u8, day_str);
+    return try std.fmt.parseInt(u8, day_str, 10);
 }
 
-fn getInput(allocator: std.mem.Allocator, day: []const u8) ![]const u8 {
+fn getInput(allocator: std.mem.Allocator, day: u8) ![]const u8 {
     var file = std.fs.cwd().openFile("input", .{}) catch |err| switch (err) {
         error.FileNotFound => {
             return try downloadInput(allocator, day);
@@ -70,22 +70,22 @@ fn getInput(allocator: std.mem.Allocator, day: []const u8) ![]const u8 {
     defer file.close();
 
     const input = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
-    defer allocator.free(input);
 
     if (input.len == 0) {
+        allocator.free(input);
         return try downloadInput(allocator, day);
     }
 
     return input;
 }
 
-fn downloadInput(allocator: std.mem.Allocator, day: []const u8) ![]const u8 {
+fn downloadInput(allocator: std.mem.Allocator, day: u8) ![]const u8 {
     std.debug.print("Downloading input...\n", .{});
 
     const cookie = try getCookie(allocator);
     defer allocator.free(cookie);
 
-    const url = try std.fmt.allocPrint(allocator, "https://adventofcode.com/2025/day/{s}/input", .{day});
+    const url = try std.fmt.allocPrint(allocator, "https://adventofcode.com/2025/day/{d}/input", .{day});
     defer allocator.free(url);
 
     const result = try std.process.Child.run(.{
@@ -126,13 +126,14 @@ fn copy(allocator: std.mem.Allocator, str: []const u8) !void {
 
     try child.stdin.?.writeAll(str);
     child.stdin.?.close();
+    child.stdin = null;
 
     _ = try child.wait();
 }
 
 fn submit(
     allocator: std.mem.Allocator,
-    day: []const u8,
+    day: u8,
     part: u8,
     answer: []const u8,
 ) !void {
@@ -144,7 +145,7 @@ fn submit(
     const form_data = try std.fmt.allocPrint(allocator, "level={d}&answer={s}", .{ part, answer });
     defer allocator.free(form_data);
 
-    const url = try std.fmt.allocPrint(allocator, "https://adventofcode.com/2025/day/{s}/answer", .{day});
+    const url = try std.fmt.allocPrint(allocator, "https://adventofcode.com/2025/day/{d}/answer", .{day});
     defer allocator.free(url);
 
     const result = try std.process.Child.run(.{
@@ -186,6 +187,7 @@ fn processResponse(allocator: std.mem.Allocator, html: []const u8) ![]const u8 {
 
     try child.stdin.?.writeAll(html);
     child.stdin.?.close();
+    child.stdin = null;
 
     const stdout = try child.stdout.?.readToEndAlloc(allocator, std.math.maxInt(usize));
     defer allocator.free(stdout);

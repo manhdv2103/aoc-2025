@@ -5,26 +5,29 @@ const utils = @import("utils");
 const PART = 1;
 const WILL_SUBMIT = false;
 
-fn solveP1(allocator: std.mem.Allocator, input: []const u8) ![]const u8 {
-    _ = allocator;
-    _ = try parseInput(input);
+fn solveP1(a: std.mem.Allocator, input: []const u8) ![]const u8 {
+    const parsed = try parseInput(a, input);
+    defer a.free(parsed);
 
     return "";
 }
 
-fn solveP2(allocator: std.mem.Allocator, input: []const u8) ![]const u8 {
-    _ = allocator;
-    _ = try parseInput(input);
+fn solveP2(a: std.mem.Allocator, input: []const u8) ![]const u8 {
+    const parsed = try parseInput(a, input);
+    defer a.free(parsed);
 
     return "";
 }
 
-fn parseInput(input: []const u8) ![]const u8 {
+fn parseInput(a: std.mem.Allocator, input: []const u8) ![]u8 {
+    var parsed = try std.ArrayList(u8).initCapacity(a, 256);
+    defer parsed.deinit(a);
+
     _ = input;
-    return "";
+
+    return parsed.toOwnedSlice(a);
 }
 
 pub fn main() !void {
-    const allocator = std.heap.page_allocator;
-    try aoc.process(allocator, solveP1, solveP2, PART, WILL_SUBMIT);
+    try aoc.process(std.heap.page_allocator, solveP1, solveP2, PART, WILL_SUBMIT);
 }

@@ -1,9 +1,12 @@
 const std = @import("std");
 const aoc = @import("aoc");
 const utils = @import("utils");
+const f = std.fmt;
+const m = std.math;
+const mem = std.mem;
 
 const PART = 1;
-const WILL_SUBMIT = false;
+const WILL_SUBMIT = true;
 
 fn solveP1(a: std.mem.Allocator, input: []const u8) ![]const u8 {
     const parsed = try parseInput(a, input);
@@ -23,7 +26,8 @@ fn parseInput(a: std.mem.Allocator, input: []const u8) ![]u8 {
     var parsed = try std.ArrayList(u8).initCapacity(a, 256);
     defer parsed.deinit(a);
 
-    _ = input;
+    const trimmed = mem.trim(u8, input, " \t\n\r");
+    _ = trimmed;
 
     return parsed.toOwnedSlice(a);
 }

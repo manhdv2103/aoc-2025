@@ -3,8 +3,8 @@ const mvzr = @import("mvzr");
 
 pub fn process(
     allocator: std.mem.Allocator,
-    solve_p1: *const fn (allocator: std.mem.Allocator, input: []const u8) anyerror![]const u8,
-    solve_p2: *const fn (allocator: std.mem.Allocator, input: []const u8) anyerror![]const u8,
+    solve_p1: *const fn (allocator: std.mem.Allocator, input: []u8) anyerror![]const u8,
+    solve_p2: *const fn (allocator: std.mem.Allocator, input: []u8) anyerror![]const u8,
     part: u8,
     will_submit: bool,
 ) !void {
@@ -60,7 +60,7 @@ fn getDay(allocator: std.mem.Allocator) !u8 {
     return try std.fmt.parseInt(u8, day_str, 10);
 }
 
-fn getInput(allocator: std.mem.Allocator, day: u8) ![]const u8 {
+fn getInput(allocator: std.mem.Allocator, day: u8) ![]u8 {
     var file = std.fs.cwd().openFile("input", .{}) catch |err| switch (err) {
         error.FileNotFound => {
             return try downloadInput(allocator, day);
@@ -79,7 +79,7 @@ fn getInput(allocator: std.mem.Allocator, day: u8) ![]const u8 {
     return input;
 }
 
-fn downloadInput(allocator: std.mem.Allocator, day: u8) ![]const u8 {
+fn downloadInput(allocator: std.mem.Allocator, day: u8) ![]u8 {
     std.debug.print("Downloading input...\n", .{});
 
     const cookie = try getCookie(allocator);

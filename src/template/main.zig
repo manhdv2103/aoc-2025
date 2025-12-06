@@ -1,6 +1,6 @@
 const std = @import("std");
 const aoc = @import("aoc");
-const utils = @import("utils");
+const u = @import("utils");
 const f = std.fmt;
 const m = std.math;
 const mem = std.mem;
@@ -8,14 +8,14 @@ const mem = std.mem;
 const PART = 1;
 const WILL_SUBMIT = true;
 
-fn solveP1(a: std.mem.Allocator, input: []const u8) ![]const u8 {
+fn solveP1(a: std.mem.Allocator, input: []u8) ![]const u8 {
     const parsed = try parseInput(a, input);
     defer a.free(parsed);
 
     return "";
 }
 
-fn solveP2(a: std.mem.Allocator, input: []const u8) ![]const u8 {
+fn solveP2(a: std.mem.Allocator, input: []u8) ![]const u8 {
     const parsed = try parseInput(a, input);
     defer a.free(parsed);
 
@@ -23,7 +23,7 @@ fn solveP2(a: std.mem.Allocator, input: []const u8) ![]const u8 {
 }
 
 const ParsedUnit = []u8;
-fn parseInput(a: std.mem.Allocator, input: []const u8) ![]ParsedUnit {
+fn parseInput(a: std.mem.Allocator, input: []u8) ![]ParsedUnit {
     var parsed = try std.ArrayList(ParsedUnit).initCapacity(a, 256);
     defer parsed.deinit(a);
 

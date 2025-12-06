@@ -22,8 +22,9 @@ fn solveP2(a: std.mem.Allocator, input: []const u8) ![]const u8 {
     return "";
 }
 
-fn parseInput(a: std.mem.Allocator, input: []const u8) ![]u8 {
-    var parsed = try std.ArrayList(u8).initCapacity(a, 256);
+const ParsedUnit = []u8;
+fn parseInput(a: std.mem.Allocator, input: []const u8) ![]ParsedUnit {
+    var parsed = try std.ArrayList(ParsedUnit).initCapacity(a, 256);
     defer parsed.deinit(a);
 
     const trimmed = mem.trim(u8, input, " \t\n\r");

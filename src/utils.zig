@@ -38,3 +38,206 @@ pub const ORDINAL_DIRECTIONS = [_]Vec2{
 };
 
 pub const DIRECTIONS = CARDINAL_DIRECTIONS ++ ORDINAL_DIRECTIONS;
+
+// INTERVAL TREE
+
+pub const Interval = struct {
+    low: u64,
+    high: u64,
+};
+
+pub const IntervalTree = struct {
+    const Self = @This();
+    const Treap = std.Treap(Key, compareKey);
+    const Node = Treap.Node;
+
+    treap: Treap,
+    node_pool: std.heap.MemoryPool(Node),
+
+    pub fn init(allocator: std.mem.Allocator) Self {
+        return .{
+            .treap = .{},
+            .node_pool = std.heap.MemoryPool(Node).init(allocator),
+        };
+    }
+
+    pub fn deinit(self: *Self) void {
+        self.node_pool.deinit();
+    }
+
+    pub const Key = struct {
+        interval: Interval,
+        min: u64,
+        max: u64,
+    };
+
+    fn compareKey(a: Key, b: Key) std.math.Order {
+        return std.math.order(a.interval.low, b.interval.low);
+    }
+
+    pub fn insert(self: *Self, interval: Interval) !void {
+        const key = Key{ .interval = interval, .min = interval.low, .max = interval.high };
+        var entry = self.treap.getEntryFor(key);
+
+        const node = if (entry.node) |n| blk: {
+            n.key.interval.high = @max(n.key.interval.high, interval.high);
+            break :blk n;
+        } else blk: {
+            const n = try self.node_pool.create();
+            entry.set(n);
+            break :blk n;
+        };
+
+        node.key.min = @min(key.min, (node.children[0] orelse node).key.min, (node.children[1] orelse node).key.min);
+        node.key.max = @max(key.max, (node.children[0] orelse node).key.max, (node.children[1] orelse node).key.max);
+
+        var parent = node.parent;
+        while (parent) |p| {
+            var changed = false;
+            if (node.key.max > p.key.max) {
+                p.key.max = node.key.max;
+                changed = true;
+            }
+
+            if (node.key.min < p.key.min) {
+                p.key.min = node.key.min;
+                changed = true;
+            }
+
+            if (changed) {
+                parent = p.parent;
+            } else {
+                break;
+            }
+        }
+
+        // std.debug.print("\n", .{});
+        // printTreap(self.treap.root.?, 0);
+        // std.debug.print("\n", .{});
+    }
+
+    pub const InorderIterator = struct {
+        treap_it: Treap.InorderIterator,
+
+        pub fn next(it: *InorderIterator) ?Interval {
+            if (it.treap_it.next()) |node| {
+                return node.key.interval;
+            }
+            return null;
+        }
+    };
+
+    pub fn inorderIterator(self: *Self) InorderIterator {
+        const it = self.treap.inorderIterator();
+        return InorderIterator{ .treap_it = it };
+    }
+
+    pub fn findOverlap(self: Self, interval: Interval) !?Interval {
+        if (self.treap.root) |r| {
+            return try findOverlapInternal(r, interval);
+        }
+
+        return null;
+    }
+
+    fn findOverlapInternal(node: *Node, interval: Interval) !?Interval {
+        if (isOverlapping(node.key.interval, interval)) {
+            return node.key.interval;
+        }
+
+        if (node.children[0]) |l| {
+            if (l.key.max >= interval.low) {
+                const result = try findOverlapInternal(l, interval);
+                if (result) |res| return res;
+            }
+        }
+
+        if (node.children[1]) |r| {
+            if (r.key.min <= interval.high) {
+                const result = try findOverlapInternal(r, interval);
+                if (result) |res| return res;
+            }
+        }
+
+        return null;
+    }
+
+    pub fn findOverlaps(
+        self: Self,
+        allocator: std.mem.Allocator,
+        interval: Interval,
+    ) ![]const Interval {
+        var overlaps = try std.ArrayList(Interval).initCapacity(allocator, 64);
+        defer overlaps.deinit(allocator);
+
+        if (self.treap.root) |r| {
+            try findOverlapsInternal(allocator, r, interval, &overlaps);
+        }
+
+        return overlaps.toOwnedSlice(allocator);
+    }
+
+    fn findOverlapsInternal(
+        allocator: std.mem.Allocator,
+        node: *Node,
+        interval: Interval,
+        result: *std.ArrayList(Interval),
+    ) !void {
+        if (node.children[0]) |l| {
+            if (l.key.max >= interval.low) {
+                try findOverlapsInternal(allocator, l, interval, result);
+            }
+        }
+
+        if (isOverlapping(node.key.interval, interval)) {
+            try result.append(allocator, node.key.interval);
+        }
+
+        if (node.children[1]) |r| {
+            if (r.key.min <= interval.high) {
+                try findOverlapsInternal(allocator, r, interval, result);
+            }
+        }
+    }
+
+    pub fn getMaxDepth(self: Self) usize {
+        if (self.treap.root) |r| {
+            return getMaxDepthInternal(r);
+        }
+
+        return 0;
+    }
+
+    fn getMaxDepthInternal(node: *Node) usize {
+        var max_depth: usize = 1;
+
+        if (node.children[0]) |l| {
+            max_depth = @max(max_depth, 1 + getMaxDepthInternal(l));
+        }
+        if (node.children[1]) |r| {
+            max_depth = @max(max_depth, 1 + getMaxDepthInternal(r));
+        }
+
+        return max_depth;
+    }
+
+    fn isOverlapping(a: Interval, b: Interval) bool {
+        return a.low <= b.high and b.low <= a.high;
+    }
+
+    fn printTreap(node: *Node, level: usize) void {
+        std.debug.print("> {any}\n", .{node.key});
+
+        if (node.children[0]) |ln| {
+            for (0..level + 1) |_| std.debug.print("  ", .{});
+            std.debug.print("L", .{});
+            printTreap(ln, level + 1);
+        }
+
+        if (node.children[1]) |rn| {
+            for (0..level + 1) |_| std.debug.print("  ", .{});
+            std.debug.print("R", .{});
+            printTreap(rn, level + 1);
+        }
+    }
+};

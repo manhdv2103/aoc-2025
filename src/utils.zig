@@ -241,3 +241,49 @@ pub const IntervalTree = struct {
         }
     }
 };
+
+// QUEUE
+
+pub fn Queue(comptime T: type) type {
+    return struct {
+        buf: []T,
+        head: usize = 0,
+        tail: usize = 0,
+        len: usize = 0,
+
+        pub fn init(allocator: std.mem.Allocator, capacity: usize) !@This() {
+            const buf = try allocator.alloc(T, capacity);
+            return .{ .buf = buf };
+        }
+
+        pub fn deinit(self: *@This(), allocator: std.mem.Allocator) void {
+            allocator.free(self.buf);
+        }
+
+        pub fn isFull(self: *const @This()) bool {
+            return self.len == self.buf.len;
+        }
+
+        pub fn enqueue(self: *@This(), value: T) !void {
+            if (self.isFull()) return error.QueueIsFull;
+
+            self.buf[self.tail] = value;
+            self.tail = (self.tail + 1) % self.buf.len;
+            self.len += 1;
+        }
+
+        pub fn dequeue(self: *@This()) ?T {
+            if (self.len == 0) return null;
+
+            const value = self.buf[self.head];
+            self.head = (self.head + 1) % self.buf.len;
+            self.len -= 1;
+            return value;
+        }
+
+        pub fn peek(self: *const @This()) ?T {
+            if (self.len == 0) return null;
+            return self.buf[self.head];
+        }
+    };
+}

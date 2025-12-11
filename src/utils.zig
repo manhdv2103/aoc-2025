@@ -287,3 +287,107 @@ pub fn Queue(comptime T: type) type {
         }
     };
 }
+
+// PARALLEL SORT
+
+pub fn parallelSort(
+    comptime T: type,
+    allocator: std.mem.Allocator,
+    items: []T,
+    thread_count: usize,
+    comptime lessThanFn: fn (lhs: T, rhs: T) bool,
+) !void {
+    const chunk_size = (items.len + thread_count - 1) / thread_count;
+
+    const threads = try allocator.alloc(std.Thread, thread_count);
+    defer allocator.free(threads);
+
+    for (threads, 0..) |*t, i| {
+        const start = i * chunk_size;
+        if (start >= items.len) break;
+
+        const end = @min(start + chunk_size, items.len);
+        const chunk = items[start..end];
+
+        t.* = try std.Thread.spawn(.{}, struct {
+            fn run(c: []T) void {
+                std.mem.sort(T, c, {}, (struct {
+                    fn compare(_: void, lhs: T, rhs: T) bool {
+                        return lessThanFn(lhs, rhs);
+                    }
+                }).compare);
+            }
+        }.run, .{chunk});
+    }
+    for (threads) |*t| {
+        t.join();
+    }
+
+    try mergeAll(T, allocator, items, chunk_size, lessThanFn);
+}
+
+pub fn mergeAll(
+    comptime T: type,
+    allocator: std.mem.Allocator,
+    items: []T,
+    chunk_size: usize,
+    comptime lessThanFn: fn (lhs: T, rhs: T) bool,
+) !void {
+    var start: usize = 0;
+    while (start < items.len) {
+        const mid = @min(start + chunk_size, items.len);
+        const end = @min(start + 2 * chunk_size, items.len);
+
+        if (mid < end) {
+            try merge(T, allocator, items[start..end], mid - start, lessThanFn);
+        }
+        start += 2 * chunk_size;
+    }
+
+    var size = chunk_size * 2;
+    while (size < items.len) {
+        var s: usize = 0;
+        while (s < items.len) {
+            const mid2 = @min(s + size, items.len);
+            const end2 = @min(s + 2 * size, items.len);
+            if (mid2 < end2) {
+                try merge(T, allocator, items[s..end2], mid2 - s, lessThanFn);
+            }
+            s += 2 * size;
+        }
+        size *= 2;
+    }
+}
+
+fn merge(
+    comptime T: type,
+    allocator: std.mem.Allocator,
+    items: []T,
+    left_len: usize,
+    comptime lessThanFn: fn (lhs: T, rhs: T) bool,
+) !void {
+    const left = items[0..left_len];
+    const right = items[left_len..];
+
+    var tmp = try allocator.alloc(T, left.len);
+    defer allocator.free(tmp);
+
+    @memcpy(tmp, left);
+
+    var i: usize = 0;
+    var j: usize = 0;
+    var k: usize = 0;
+    while (i < tmp.len and j < right.len) : (k += 1) {
+        if (lessThanFn(tmp[i], right[j])) {
+            items[k] = tmp[i];
+            i += 1;
+        } else {
+            items[k] = right[j];
+            j += 1;
+        }
+    }
+
+    if (i < tmp.len) {
+        @memcpy(items[k..], tmp[i..]);
+    }
+}

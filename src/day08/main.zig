@@ -147,8 +147,8 @@ fn parseInput(a: std.mem.Allocator, input: []u8) !struct { []Vec3, []Pair } {
         }
     }
 
-    mem.sort(Pair, pairs, {}, (struct {
-        fn compareFn(_: void, pa: Pair, pb: Pair) bool {
+    try u.parallelSort(Pair, a, pairs, 4, (struct {
+        fn compareFn(pa: Pair, pb: Pair) bool {
             return pa.dist_sqr < pb.dist_sqr;
         }
     }).compareFn);

@@ -28,7 +28,10 @@ fn parseInput(a: std.mem.Allocator, input: []u8) ![]ParsedUnit {
     defer parsed.deinit(a);
 
     const trimmed = mem.trim(u8, input, " \t\n\r");
-    _ = trimmed;
+    var it = mem.splitScalar(u8, trimmed, '\n');
+    while (it.next()) |l| {
+        _ = l;
+    }
 
     return parsed.toOwnedSlice(a);
 }
